@@ -1,52 +1,18 @@
 use byteorder::{ByteOrder, NativeEndian};
 use human_panic::setup_panic;
 use itertools::Itertools;
+use std::convert::TryInto;
 use std::io::prelude::*;
-use std::path::PathBuf;
 use std::{
     fs,
     io::{self, SeekFrom},
 };
-use structopt::{clap::ArgGroup, StructOpt};
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "hex", about = "A hexdump utility.", author, group = ArgGroup::with_name("format").required(false).multiple(true))]
-struct Options {
-    /// Enable one-byte octal display.
-    #[structopt(short = "b", long = "one-byte-octal", group = "format")]
-    one_byte_octal: bool,
-    /// Enable one-byte character display.
-    #[structopt(short = "c", long = "one-byte-char", group = "format")]
-    one_byte_char: bool,
-    /// Enable two-byte octal display.
-    #[structopt(short = "o", long = "two-bytes-octal", group = "format")]
-    two_bytes_octal: bool,
-    /// Enable two-byte hexadecimal display.
-    #[structopt(short = "x", long = "two-bytes-hex", group = "format")]
-    two_bytes_hex: bool,
-    /// Enable canonical hex+ASCII display.
-    #[structopt(short = "C", long = "canonical", group = "format")]
-    canonical: bool,
-    /// Enable two-byte decimal display.
-    #[structopt(short = "d", long = "two-bytes-decimal", group = "format")]
-    decimal: bool,
-
-    /// Interpret only `length` bytes of input.
-    #[structopt(short = "n", long = "length")]
-    length: Option<u64>,
-    /// Skip `offset` bytes from the beginning of the input.
-    #[structopt(short = "s", long = "skip")]
-    skip: Option<u64>,
-
-    /// Input file
-    #[structopt(parse(from_os_str))]
-    input: PathBuf,
-}
+use structopt::StructOpt;
 
 fn main() -> io::Result<()> {
     setup_panic!();
 
-    let mut opt = Options::from_args();
+    let mut opt = hex::Options::from_args();
     if !opt.one_byte_octal
         && !opt.one_byte_char
         && !opt.two_bytes_octal
@@ -61,7 +27,7 @@ fn main() -> io::Result<()> {
     let mut br = io::BufReader::new(file);
 
     let offset = if let Some(skip) = opt.skip {
-        br.seek(SeekFrom::Start(skip))?;
+        br.seek(SeekFrom::Start(skip.try_into().unwrap()))?;
         skip
     } else {
         0
@@ -206,7 +172,7 @@ fn main() -> io::Result<()> {
     };
 
     if let Some(len) = opt.length {
-        print_lines(&mut br.take(len))?;
+        print_lines(&mut br.take(len.try_into().unwrap()))?;
     } else {
         print_lines(&mut br)?;
     }
