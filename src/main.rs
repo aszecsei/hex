@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, NativeEndian};
+use hex::LineWriter;
 use human_panic::setup_panic;
 use itertools::Itertools;
 use std::convert::TryInto;
@@ -33,138 +33,44 @@ fn main() -> io::Result<()> {
         0
     };
 
+    let writers = {
+        let mut writers: Vec<Box<dyn LineWriter>> = vec![];
+        if opt.one_byte_octal {
+            writers.push(Box::new(hex::OneByteOctal));
+        }
+        if opt.one_byte_char {
+            writers.push(Box::new(hex::OneByteChar));
+        }
+        if opt.canonical {
+            writers.push(Box::new(hex::CanonicalWriter));
+        }
+        if opt.decimal {
+            writers.push(Box::new(hex::DecimalWriter));
+        }
+        if opt.two_bytes_octal {
+            writers.push(Box::new(hex::TwoBytesOctal));
+        }
+        if opt.two_bytes_hex {
+            writers.push(Box::new(hex::TwoBytesHex));
+        }
+        writers
+    };
+
     let print_lines = |reader: &mut dyn io::Read| -> io::Result<()> {
         let mut bytes = vec![];
         reader.read_to_end(&mut bytes)?;
 
         for (chunk_idx, chunk) in bytes.iter().chunks(16).into_iter().enumerate() {
-            let print_idx = || {
-                let idx = offset as usize + (chunk_idx * 16);
-                print!("{:#010x}\t", idx);
+            let chunk_vec = chunk.copied().collect_vec();
+            let chunk_data = hex::ChunkData {
+                offset: offset + (chunk_idx as u128 * 16),
+                chunk: &chunk_vec,
             };
 
-            let chunk_vec = chunk.collect_vec();
-
-            if opt.one_byte_octal {
-                print_idx();
-                for byte in chunk_vec.iter() {
-                    print!("{:03o}", byte);
-                    print!(" ");
-                }
-                println!();
-            }
-
-            if opt.one_byte_char {
-                print_idx();
-                for &&byte in chunk_vec.iter() {
-                    let escaped = match byte as char {
-                        '\t' => "\\t".to_string(),
-                        '\n' => "\\n".to_string(),
-                        '\r' => "\\r".to_string(),
-                        '\0' => "\\0".to_string(),
-                        ch if (0x20..=0x7e).contains(&byte) => format!("{}", ch),
-                        _ => format!("{:o}", byte),
-                    };
-                    print!("{:>03} ", escaped);
-                }
-                println!();
-            }
-
-            if opt.canonical {
-                print_idx();
-
-                let size = if chunk_vec.len() > 8 {
-                    let (first, second) = chunk_vec.split_at(8);
-                    for byte in first {
-                        print!("{:02X}", byte);
-                        print!(" ");
-                    }
-                    print!(" ");
-                    for byte in second {
-                        print!("{:02X}", byte);
-                        print!(" ");
-                    }
-                    chunk_vec.len() * 3 + 1
-                } else {
-                    for byte in chunk_vec.iter() {
-                        print!("{:02X}", byte);
-                        print!(" ");
-                    }
-                    chunk_vec.len() * 3
-                };
-                if chunk_vec.len() < 16 {
-                    let full = 16 * 3 + 1;
-                    let remain = full - size;
-                    for _i in 0..remain {
-                        print!(" ");
-                    }
-                }
-
-                print!("\t|");
-                for &&byte in chunk_vec.iter() {
-                    if byte.is_ascii() {
-                        let ch = byte as char;
-                        if ch.is_control() {
-                            print!(".");
-                        } else {
-                            print!("{}", ch);
-                        }
-                    } else {
-                        print!(".");
-                    }
-                }
-                println!("|");
-            }
-
-            if opt.decimal {
-                print_idx();
-
-                let merged = chunk_vec.iter().batching(|it| match it.next() {
-                    None => None,
-                    Some(x) => match it.next() {
-                        None => Some(**x as u16),
-                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                    },
-                });
-
-                for halfword in merged {
-                    print!("{:05} ", halfword);
-                }
-                println!();
-            }
-
-            if opt.two_bytes_octal {
-                print_idx();
-
-                let merged = chunk_vec.iter().batching(|it| match it.next() {
-                    None => None,
-                    Some(x) => match it.next() {
-                        None => Some(**x as u16),
-                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                    },
-                });
-
-                for halfword in merged {
-                    print!("{:06o} ", halfword);
-                }
-                println!();
-            }
-
-            if opt.two_bytes_hex {
-                print_idx();
-
-                let merged = chunk_vec.iter().batching(|it| match it.next() {
-                    None => None,
-                    Some(x) => match it.next() {
-                        None => Some(**x as u16),
-                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                    },
-                });
-
-                for halfword in merged {
-                    print!("{:04X} ", halfword);
-                }
-                println!();
+            let mut stdout = std::io::stdout();
+            for writer in writers.iter() {
+                writer.print_idx(&chunk_data, &mut stdout)?;
+                writer.print_chunk(&chunk_data, &mut stdout)?;
             }
         }
 

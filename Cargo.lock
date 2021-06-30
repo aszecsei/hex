@@ -154,6 +154,7 @@ dependencies = [
  "byteorder",
  "human-panic",
  "itertools",
+ "mark_last",
  "structopt",
  "thiserror",
  "utf8-width",
@@ -194,6 +195,12 @@ name = "libc"
 version = "0.2.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
+
+[[package]]
+name = "mark_last"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f0d6a1db42ba8afb5dafdc1da4b93d341972f160df7c8d25ecf8e2c016f12f9"
 
 [[package]]
 name = "memchr"
