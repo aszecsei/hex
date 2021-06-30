@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           cd target/release
-          tar czvf ../../hex-Linux-x86_64.tar.gz target/release/hex
+          tar czvf ../../hex-Linux-x86_64.tar.gz hex
           cd -
       - uses: actions/upload-artifact@v2
         with:
@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           cd target/release
-          7z a ../../hex-Windows-x86_64.zip target/release/hex.exe
+          7z a ../../hex-Windows-x86_64.zip hex.exe
           cd -
       - uses: actions/upload-artifact@v2
         with:
@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: |
           cd target/release
-          tar czvf ../../hex-MacOS-x86_64.tar.gz target/release/hex
+          tar czvf ../../hex-MacOS-x86_64.tar.gz hex
           ch -
       - name: Generate SHA-256
         run: shasum -a 256 hex-MacOS-x86_64.tar.gz
