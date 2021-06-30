@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 mod byte_unit;
 
 use byte_unit::parse_bytes;
@@ -77,7 +79,7 @@ impl LineWriter for CanonicalWriter {
                     write!(w, " ")?;
                 }
             }
-            data.chunk.len() * 3
+            data.chunk.len() * 3 - 1
         };
         if data.chunk.len() < 16 {
             let full = 16 * 3;
