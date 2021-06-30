@@ -100,7 +100,7 @@ jobs:
         run: |
           cd target/release
           tar czvf ../../hex-MacOS-x86_64.tar.gz hex
-          ch -
+          cd -
       - name: Generate SHA-256
         run: shasum -a 256 hex-MacOS-x86_64.tar.gz
       - uses: actions/upload-artifact@v2
