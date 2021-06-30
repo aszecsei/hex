@@ -28,7 +28,11 @@ jobs:
           command: build
           args: --release
       - name: Package
-        run: tar czvf hex-Linux-x86_64.tar.gz target/release/hex
+        shell: bash
+        run: |
+          cd target/release
+          tar czvf ../../hex-Linux-x86_64.tar.gz target/release/hex
+          cd -
       - uses: actions/upload-artifact@v2
         with:
           name: dist-linux
@@ -58,7 +62,11 @@ jobs:
           command: build
           args: --release
       - name: Package
-        run: 7z a hex-Windows-x86_64.zip target/release/hex.exe
+        shell: bash
+        run: |
+          cd target/release
+          7z a ../../hex-Windows-x86_64.zip target/release/hex.exe
+          cd -
       - uses: actions/upload-artifact@v2
         with:
           name: dist-windows
@@ -88,7 +96,13 @@ jobs:
           command: build
           args: --release
       - name: Package
-        run: tar czvf hex-MacOS-x86_64.tar.gz target/release/hex
+        shell: bash
+        run: |
+          cd target/release
+          tar czvf ../../hex-MacOS-x86_64.tar.gz target/release/hex
+          ch -
+      - name: Generate SHA-256
+        run: shasum -a 256 hex-MacOS-x86_64.tar.gz
       - uses: actions/upload-artifact@v2
         with:
           name: dist-macos
