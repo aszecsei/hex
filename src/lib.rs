@@ -235,7 +235,9 @@ pub fn print_lines(
     let mut idx = 0;
     loop {
         let amt = read_to_fill(reader, &mut buffer)?;
-        let complete = amt < buffer.len();
+        if amt == 0 {
+            return Ok(());
+        }
 
         let chunk_data = ChunkData {
             offset: offset + (idx * BUFFER_SIZE as u128),
@@ -249,10 +251,6 @@ pub fn print_lines(
         }
 
         idx += 1;
-
-        if complete {
-            return Ok(());
-        }
     }
 }
 
