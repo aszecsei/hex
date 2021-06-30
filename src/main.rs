@@ -1,10 +1,13 @@
-use std::path::PathBuf;
-use structopt::{clap::ArgGroup, StructOpt};
-use std::{fs, io::{self, SeekFrom}};
-use std::io::prelude::*;
-use itertools::Itertools;
+use byteorder::{ByteOrder, NativeEndian};
 use human_panic::setup_panic;
-use byteorder::{NativeEndian, ByteOrder};
+use itertools::Itertools;
+use std::io::prelude::*;
+use std::path::PathBuf;
+use std::{
+    fs,
+    io::{self, SeekFrom},
+};
+use structopt::{clap::ArgGroup, StructOpt};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "hex", about = "A hexdump utility.", author, group = ArgGroup::with_name("format").required(false).multiple(true))]
@@ -44,13 +47,19 @@ fn main() -> io::Result<()> {
     setup_panic!();
 
     let mut opt = Options::from_args();
-    if !opt.one_byte_octal && !opt.one_byte_char && !opt.two_bytes_octal && !opt.two_bytes_hex && !opt.canonical && !opt.decimal {
+    if !opt.one_byte_octal
+        && !opt.one_byte_char
+        && !opt.two_bytes_octal
+        && !opt.two_bytes_hex
+        && !opt.canonical
+        && !opt.decimal
+    {
         opt.canonical = true;
     }
 
     let file = fs::File::open(&opt.input)?;
     let mut br = io::BufReader::new(file);
-    
+
     let offset = if let Some(skip) = opt.skip {
         br.seek(SeekFrom::Start(skip))?;
         skip
@@ -87,8 +96,8 @@ fn main() -> io::Result<()> {
                         '\n' => "\\n".to_string(),
                         '\r' => "\\r".to_string(),
                         '\0' => "\\0".to_string(),
-                        ch if byte >= 0x20 && byte <= 0x7e => format!("{}", ch),
-                        _ => format!("{:o}", byte)
+                        ch if (0x20..=0x7e).contains(&byte) => format!("{}", ch),
+                        _ => format!("{:o}", byte),
                     };
                     print!("{:>03} ", escaped);
                 }
@@ -144,14 +153,12 @@ fn main() -> io::Result<()> {
             if opt.decimal {
                 print_idx();
 
-                let merged = chunk_vec.iter().batching(|it| {
-                    match it.next() {
-                        None => None,
-                        Some(x) => match it.next() {
-                            None => Some(**x as u16),
-                            Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                        }
-                    }
+                let merged = chunk_vec.iter().batching(|it| match it.next() {
+                    None => None,
+                    Some(x) => match it.next() {
+                        None => Some(**x as u16),
+                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
+                    },
                 });
 
                 for halfword in merged {
@@ -163,14 +170,12 @@ fn main() -> io::Result<()> {
             if opt.two_bytes_octal {
                 print_idx();
 
-                let merged = chunk_vec.iter().batching(|it| {
-                    match it.next() {
-                        None => None,
-                        Some(x) => match it.next() {
-                            None => Some(**x as u16),
-                            Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                        }
-                    }
+                let merged = chunk_vec.iter().batching(|it| match it.next() {
+                    None => None,
+                    Some(x) => match it.next() {
+                        None => Some(**x as u16),
+                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
+                    },
                 });
 
                 for halfword in merged {
@@ -182,14 +187,12 @@ fn main() -> io::Result<()> {
             if opt.two_bytes_hex {
                 print_idx();
 
-                let merged = chunk_vec.iter().batching(|it| {
-                    match it.next() {
-                        None => None,
-                        Some(x) => match it.next() {
-                            None => Some(**x as u16),
-                            Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
-                        }
-                    }
+                let merged = chunk_vec.iter().batching(|it| match it.next() {
+                    None => None,
+                    Some(x) => match it.next() {
+                        None => Some(**x as u16),
+                        Some(y) => Some(NativeEndian::read_u16(&[**x, **y])),
+                    },
                 });
 
                 for halfword in merged {
