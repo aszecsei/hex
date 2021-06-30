@@ -49,16 +49,16 @@ pub struct ChunkData<'a> {
     pub chunk: &'a [u8],
 }
 pub trait LineWriter {
-    fn print_idx(&self, data: &ChunkData, w: &mut dyn Write) -> io::Result<()> {
+    fn print_idx(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         write!(w, "{:#010x}\t", data.offset)
     }
 
-    fn print_chunk(&self, data: &ChunkData, w: &mut dyn Write) -> io::Result<()>;
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()>;
 }
 
 pub struct CanonicalWriter;
 impl LineWriter for CanonicalWriter {
-    fn print_chunk(&self, data: &ChunkData, w: &mut dyn Write) -> io::Result<()> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         let size = if data.chunk.len() > 8 {
             let (first, second) = data.chunk.split_at(8);
             for byte in first {
@@ -109,11 +109,7 @@ impl LineWriter for CanonicalWriter {
 
 pub struct OneByteOctal;
 impl LineWriter for OneByteOctal {
-    fn print_chunk(
-        &self,
-        data: &ChunkData<'_>,
-        w: &mut dyn std::io::Write,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         for (last, byte) in data.chunk.iter().mark_last() {
             write!(w, "{:03o}", byte)?;
             if !last {
@@ -127,11 +123,7 @@ impl LineWriter for OneByteOctal {
 
 pub struct OneByteChar;
 impl LineWriter for OneByteChar {
-    fn print_chunk(
-        &self,
-        data: &ChunkData<'_>,
-        w: &mut dyn std::io::Write,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         for (last, byte) in data.chunk.iter().copied().mark_last() {
             let escaped = match byte as char {
                 '\t' => "\\t".to_string(),
@@ -153,11 +145,7 @@ impl LineWriter for OneByteChar {
 
 pub struct DecimalWriter;
 impl LineWriter for DecimalWriter {
-    fn print_chunk(
-        &self,
-        data: &ChunkData<'_>,
-        w: &mut dyn std::io::Write,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         let merged = data.chunk.iter().batching(|it| match it.next() {
             None => None,
             Some(x) => match it.next() {
@@ -178,11 +166,7 @@ impl LineWriter for DecimalWriter {
 
 pub struct TwoBytesOctal;
 impl LineWriter for TwoBytesOctal {
-    fn print_chunk(
-        &self,
-        data: &ChunkData<'_>,
-        w: &mut dyn std::io::Write,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         let merged = data.chunk.iter().batching(|it| match it.next() {
             None => None,
             Some(x) => match it.next() {
@@ -203,11 +187,7 @@ impl LineWriter for TwoBytesOctal {
 
 pub struct TwoBytesHex;
 impl LineWriter for TwoBytesHex {
-    fn print_chunk(
-        &self,
-        data: &ChunkData<'_>,
-        w: &mut dyn std::io::Write,
-    ) -> std::result::Result<(), std::io::Error> {
+    fn print_chunk(&self, data: &ChunkData<'_>, w: &mut dyn Write) -> io::Result<()> {
         let merged = data.chunk.iter().batching(|it| match it.next() {
             None => None,
             Some(x) => match it.next() {
@@ -223,6 +203,56 @@ impl LineWriter for TwoBytesHex {
         }
         writeln!(w)?;
         Ok(())
+    }
+}
+
+fn read_to_fill(reader: &mut dyn io::Read, buf: &mut [u8]) -> io::Result<usize> {
+    let mut read = 0;
+    loop {
+        let buf = &mut buf[read..];
+        match reader.read(buf) {
+            Ok(0) => return Ok(read),
+            Ok(n) => {
+                assert!(n <= buf.len());
+                read += n;
+            }
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+        if read == buf.len() {
+            return Ok(read);
+        }
+    }
+}
+
+pub fn print_lines(
+    writers: &[Box<dyn LineWriter>],
+    offset: u128,
+    reader: &mut dyn io::Read,
+) -> io::Result<()> {
+    const BUFFER_SIZE: usize = 16;
+    let mut buffer = [0u8; BUFFER_SIZE];
+    let mut idx = 0;
+    loop {
+        let amt = read_to_fill(reader, &mut buffer)?;
+        let complete = amt < buffer.len();
+
+        let chunk_data = ChunkData {
+            offset: offset + (idx * BUFFER_SIZE as u128),
+            chunk: &buffer[..amt],
+        };
+
+        let mut stdout = std::io::stdout();
+        for writer in writers.iter() {
+            writer.print_idx(&chunk_data, &mut stdout)?;
+            writer.print_chunk(&chunk_data, &mut stdout)?;
+        }
+
+        idx += 1;
+
+        if complete {
+            return Ok(());
+        }
     }
 }
 

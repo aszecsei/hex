@@ -1,6 +1,5 @@
 use hex::LineWriter;
 use human_panic::setup_panic;
-use itertools::Itertools;
 use std::convert::TryInto;
 use std::io::prelude::*;
 use std::{
@@ -24,10 +23,10 @@ fn main() -> io::Result<()> {
     }
 
     let file = fs::File::open(&opt.input)?;
-    let mut br = io::BufReader::new(file);
+    let mut reader = io::BufReader::new(file);
 
     let offset = if let Some(skip) = opt.skip {
-        br.seek(SeekFrom::Start(skip.try_into().unwrap()))?;
+        reader.seek(SeekFrom::Start(skip.try_into().unwrap()))?;
         skip
     } else {
         0
@@ -56,31 +55,10 @@ fn main() -> io::Result<()> {
         writers
     };
 
-    let print_lines = |reader: &mut dyn io::Read| -> io::Result<()> {
-        let mut bytes = vec![];
-        reader.read_to_end(&mut bytes)?;
-
-        for (chunk_idx, chunk) in bytes.iter().chunks(16).into_iter().enumerate() {
-            let chunk_vec = chunk.copied().collect_vec();
-            let chunk_data = hex::ChunkData {
-                offset: offset + (chunk_idx as u128 * 16),
-                chunk: &chunk_vec,
-            };
-
-            let mut stdout = std::io::stdout();
-            for writer in writers.iter() {
-                writer.print_idx(&chunk_data, &mut stdout)?;
-                writer.print_chunk(&chunk_data, &mut stdout)?;
-            }
-        }
-
-        Ok(())
-    };
-
     if let Some(len) = opt.length {
-        print_lines(&mut br.take(len.try_into().unwrap()))?;
+        hex::print_lines(&writers, offset, &mut reader.take(len.try_into().unwrap()))?;
     } else {
-        print_lines(&mut br)?;
+        hex::print_lines(&writers, offset, &mut reader)?;
     }
 
     Ok(())
