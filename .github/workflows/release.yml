@@ -30,6 +30,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          strip target/release/hex
           cd target/release
           tar czvf ../../hex-Linux-x86_64.tar.gz hex
           cd -
@@ -64,6 +65,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          strip target/release/hex.exe
           cd target/release
           7z a ../../hex-Windows-x86_64.zip hex.exe
           cd -
@@ -98,6 +100,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          strip target/release/hex
           cd target/release
           tar czvf ../../hex-MacOS-x86_64.tar.gz hex
           cd -
