@@ -58,7 +58,7 @@ jobs:
           command: build
           args: --release
       - name: Package
-        run: 7z a hex-Windows-x86_64.zip target/release/hex
+        run: 7z a hex-Windows-x86_64.zip target/release/hex.exe
       - uses: actions/upload-artifact@v2
         with:
           name: dist-windows
